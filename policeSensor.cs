@@ -11,12 +11,12 @@ public class policeSensor : MonoBehaviour
     public LayerMask targetMask; // Para detectar solo al ladr�n
     public LayerMask obstacleMask; // Para detectar obst�culos
 
-    private worldState worldState;
+    private policeBrain policeBrain;
 
     // Start is called before the first frame update
     void Start()
     {
-        worldState = GetComponent<worldState>(); // Asumiendo que worldState est� en el mismo GameObject
+        policeBrain = GetComponent<policeBrain>(); // Asumiendo que policeBrain est� en el mismo GameObject
         StartCoroutine(DetectRoutine());
     }
 
@@ -60,7 +60,7 @@ public class policeSensor : MonoBehaviour
         }
 
         // Actualizamos el estado con la informaci�n de si se detect� algo
-        worldState.UpdateSeenStatus(detected, detectedPosition);
+        policeBrain.UpdateSeenStatus(detected, detectedPosition);
     }
 
     // M�todo para dibujar el campo de visi�n del polic�a
@@ -87,5 +87,33 @@ public class policeSensor : MonoBehaviour
     void Update()
     {
         DrawFieldOfView(); // Dibuja el campo de visi�n
+    }
+
+    public float noiseDetectionRadius = 10f; // Radio fijo en el que se puede detectar el ruido
+    public float noiseMarginError = 5f; // Margen de error para aproximar la zona del ruido
+
+    private policeBrain brain;
+
+    // Método para detectar ruido
+    public void DetectNoise(Vector3 noiseOrigin)
+    {
+        // Genera una zona aproximada añadiendo un pequeño margen de error
+        Vector3 approximateZone = noiseOrigin + new Vector3(
+            Random.Range(-noiseMarginError, noiseMarginError),
+            0,
+            Random.Range(-noiseMarginError, noiseMarginError)
+        );
+
+        // Verificar si este policía está dentro del radio de detección
+        float distance = Vector3.Distance(transform.position, noiseOrigin);
+        if (distance <= noiseDetectionRadius)
+        {
+            brain.OnNoiseDetected(approximateZone);
+        }
+    }
+    
+    void Awake()
+    {
+        brain = GetComponent<policeBrain>();
     }
 }

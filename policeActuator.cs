@@ -26,6 +26,7 @@ public class policeActuator : MonoBehaviour
             currentwayPoint = (currentwayPoint + 1) % wayPoint.Count;
             agent.SetDestination(wayPoint[currentwayPoint].position);
         }
+        MakeNoise();
     }
 
     // Mover al polic�a hacia el objetivo (por ejemplo, el ladr�n)
@@ -34,12 +35,23 @@ public class policeActuator : MonoBehaviour
         agent.stoppingDistance = 0f;
         // Establecer el destino al que debe moverse el polic�a
         agent.SetDestination(targetPosition);
+        MakeNopise();
     }
 
     //Detener al polic�a
     public void StopMoving()
     {
         agent.ResetPath(); // Detiene el movimiento
+    }
+
+    void MakeNoise()
+    {
+        // Encuentra todos los sensores de policías en la escena y les envía la detección de ruido
+        policeSensor[] policeSensors = FindObjectsOfType<policeSensor>();
+        foreach (policeSensor sensor in policeSensors)
+        {
+            sensor.DetectNoise(transform.position);
+        }
     }
 
     // Start se llama al inicio

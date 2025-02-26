@@ -27,5 +27,20 @@ public class PlayerController : MonoBehaviour
 
         Vector3 movement = new Vector3(moveX, 0, moveZ) * speed * Time.deltaTime;
         transform.Translate(movement, Space.World);
+    
+        if (movement.magnitude > 0)
+        {
+            MakeNoise();
+        }
+    }
+
+    void MakeNoise()
+    {
+        // Encuentra todos los sensores de policías en la escena y envía la detección de ruido
+        policeSensor[] policeSensors = FindObjectsOfType<policeSensor>();
+        foreach (policeSensor sensor in policeSensors)
+        {
+            sensor.DetectNoise(transform.position);
+        }
     }
 }
