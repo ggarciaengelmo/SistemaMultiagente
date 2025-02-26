@@ -162,6 +162,14 @@ public class policeBrain : MonoBehaviour
             UpdateWorldState("isTreasureStolen", isTreasureStolen.Value);
         }
     }
+    // Método para recibir la detección de ruido con una zona aproximada.
+    public void OnNoiseDetected(Vector3 zonaAproximada)
+    {
+        // Actualiza el estado del mundo: se ha escuchado un ruido y se asigna la zona aproximada.
+        worldState.isThiefHeard = true;
+        worldState.noiseZone = zonaAproximada;
+        Debug.Log("Ruido detectado en zona aproximada: " + zonaAproximada);
+    }
 
 
     void AlertState()
