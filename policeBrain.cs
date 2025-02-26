@@ -4,39 +4,44 @@ using UnityEngine;
 
 public class policeBrain : MonoBehaviour
 {
-    private worldState worldState;
+   
     private policeSensor sensor;
     private policeActuator actuator;
 
-    private enum PoliceState { Patrolling, Pursuing, Alert, Searching }
+    private enum PoliceState { Patrolling, Pursuing, Alert, Searching, VerifyTreasure, CampTreasure, CampDoor }
     private PoliceState currentState;
-    private float searchTimer = 0f; // Temporizador de b�squeda
-    private const float maxSearchTime = 7f; // Tiempo m�ximo en b�squeda antes de volver a patrullar
-
+    private float searchTimer = 0f; // Temporizador de búsqueda
+    private const float maxSearchTime = 7f; // Tiempo máximo en búsqueda antes de volver a patrullar
+    private bool endAction = false;
+    private Dictionary<string, object> worldState;
 
     void Awake()
     {
         // Buscar los componentes dentro del mismo GameObject
-        worldState = GetComponent<worldState>();
+        worldState = new Dictionary<string, object>
+        {
+            {"isThiefHeard", false},
+            {"isThiefSeen", false},
+            {"isTreasureStolen", false},
+            {"thiefPosition", Vector3.zero}
+        };
         sensor = GetComponent<policeSensor>();
         actuator = GetComponent<policeActuator>();
 
         currentState = PoliceState.Patrolling;
 
     }
-
-
     void Update()
     {
         switch (currentState)
         {
             case PoliceState.Patrolling:
                 Patrol();
-                if (worldState.isThiefHeard && !worldState.isThiefSeen)
+                if ((bool)worldState["isThiefHeard"] && !(bool)worldState["isThiefSeen"])
                 {
                     currentState = PoliceState.Alert;
                 }
-                else if (worldState.isThiefSeen)
+                else if ((bool)worldState["isThiefSeen"])
                 {
                     currentState = PoliceState.Pursuing;
                 }
@@ -44,7 +49,7 @@ public class policeBrain : MonoBehaviour
 
             case PoliceState.Pursuing:
                 PursueThief();
-                if (!worldState.isThiefSeen)
+                if (!(bool)worldState["isThiefSeen"])
                 {
                     currentState = PoliceState.Searching;
                 }
@@ -52,60 +57,151 @@ public class policeBrain : MonoBehaviour
 
             case PoliceState.Alert:
                 AlertState();
-                if (worldState.isThiefSeen)
+                searchTimer += Time.deltaTime;
+                if ((bool)worldState["isThiefSeen"])
                 {
                     currentState = PoliceState.Pursuing;
                 }
-                else if (!worldState.isThiefHeard)
+                else if (endAction)
                 {
-                    currentState = PoliceState.Patrolling;
+                    currentState = PoliceState.VerifyTreasure;
                 }
                 break;
 
             case PoliceState.Searching:
                 SearchForThief();
                 searchTimer += Time.deltaTime;
-                if (worldState.isThiefSeen)
+
+                if ((bool)worldState["isThiefSeen"])
                 {
                     currentState = PoliceState.Pursuing;
                     searchTimer = 0f;
                 }
-                else if (worldState.isThiefHeard)
-                {
-                     currentState = PoliceState.Alert;
-                     searchTimer = 0f;
-                }
                 else if (searchTimer >= maxSearchTime)
                 {
-                    currentState = PoliceState.Patrolling;
-                    searchTimer = 0f;
+                    if ((bool)worldState["isTreasureStolen"])
+                    {
+                        currentState = PoliceState.CampDoor;
+                        searchTimer = 0f;
+                    }
+                    else
+                    {
+                        currentState = PoliceState.CampTreasure;
+                        searchTimer = 0f;
+                    }
+                    break;
                 }
                 break;
+            
+            case PoliceState.VerifyTreasure:
+                GoToTreasureRoom();
+                if ((bool)worldState["isThiefSeen"])
+                {
+                    currentState = PoliceState.Pursuing;
+                }
+                else if ((bool)worldState["isTreasureStolen"])
+                {
+                    currentState = PoliceState.CampDoor;
+                } 
+                else if (!(bool)worldState["isTreaasureStolen"]) 
+                {
+
+                    currentState = PoliceState.Patrolling;
+                }
+                break;
+
+            case PoliceState.CampTreasure:
+                StayAtTreasureRoom();
+                if ((bool)worldState["isThiefSeen"])
+                {
+                    currentState = PoliceState.Pursuing;
+                }
+                else if ((bool)worldState["isTreasureStolen"])
+                {
+                    currentState = PoliceState.CampDoor;
+                }
+                break;
+
+            case PoliceState.CampDoor:
+                StayAtDoor();
+                if ((bool)worldState["isThiefSeen"])
+                {
+                    currentState = PoliceState.Pursuing;
+                }
+                break;
+         }
+    }
+    public void UpdateWorldState(string key, object value)
+    {
+        worldState[key] = value;
+    }
+
+    public void UpdateState(bool? isThiefHeard = null, bool? isThiefSeen = null, Vector3? thiefPosition = null, bool? isTreasureStolen = null)
+    {
+        // Si se proporciona un valor para "isThiefHeard", actualiza el estado
+        if (isThiefHeard.HasValue)
+        {
+            UpdateWorldState("isThiefHeard", isThiefHeard.Value);
+        }
+
+        // Si se proporciona un valor para "isThiefSeen", actualiza el estado
+        if (isThiefSeen.HasValue)
+        {
+            UpdateWorldState("isThiefSeen", isThiefSeen.Value);
+        }
+
+        // Si se proporciona un valor para la posición del ladrón, actualiza el estado
+        if (thiefPosition.HasValue)
+        {
+            UpdateWorldState("thiefPosition", thiefPosition.Value);
+        }
+
+        // Si se proporciona un valor para "isTreasureStolen", actualiza el estado
+        if (isTreasureStolen.HasValue)
+        {
+            UpdateWorldState("isTreasureStolen", isTreasureStolen.Value);
         }
     }
 
 
     void AlertState()
     {
-        Debug.Log("Polic�a en estado de alerta, buscando al ladr�n.");
-        // L�gica para buscar al ladr�n o actuar en estado de alerta
+        Debug.Log("Policía en estado de alerta, buscando al ladrón.");
+        // Lógica para buscar al ladrón o actuar en estado de alerta
     }
 
     void PursueThief()
     {
-        Vector3 thiefPosition = worldState.thiefPosition;
-        actuator.MoveToTarget(thiefPosition); // Mueve al polic�a hacia el ladr�n
+        Vector3 thiefPosition = (Vector3)worldState["thiefPosition"];
+        actuator.MoveToTarget(thiefPosition); // Mueve al policía hacia el ladrón
     }
 
     void Patrol()
     {
         Debug.Log("Patrullando...");
-        actuator.Walking(); // L�gica de caminar mientras patrulla
+        actuator.Walking(); // Lógica de caminar mientras patrulla
     }
 
     void SearchForThief()
     {
-        Debug.Log("Buscando al ladr�n...");
-        // L�gica para buscar al ladr�n en el �rea, por ejemplo, patrullando �reas cercanas
+        Debug.Log("Buscando al ladrón...");
+        // Lógica para buscar al ladrón en el área, por ejemplo, patrullando áreas cercanas
     }
+    
+    void GoToTreasureRoom()
+    {
+
+    }
+    void StayAtTreasureRoom()
+    {
+
+    }
+    void StayAtDoor()
+    {
+
+    }
+
+
 }
+
+
