@@ -60,7 +60,7 @@ public class policeSensor : MonoBehaviour
         }
 
         // Actualizamos el estado con la informaci�n de si se detect� algo
-        policeBrain.UpdateSeenStatus(detected, detectedPosition);
+        policeBrain.SomeoneSeen(detectedPosition);
     }
 
     // M�todo para dibujar el campo de visi�n del polic�a

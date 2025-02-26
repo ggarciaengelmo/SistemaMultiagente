@@ -166,11 +166,15 @@ public class policeBrain : MonoBehaviour
     public void OnNoiseDetected(Vector3 zonaAproximada)
     {
         // Actualiza el estado del mundo: se ha escuchado un ruido y se asigna la zona aproximada.
-        worldState.isThiefHeard = true;
-        worldState.noiseZone = zonaAproximada;
+        updateState(isThiefHeard: true, thiefPosition: zonaAproximada);
         Debug.Log("Ruido detectado en zona aproximada: " + zonaAproximada);
     }
-
+    
+    public void SomeoneSeen(bool detected, Vector3 detectedPosition)
+    {
+        UpdateState(isThiefSeen: true, thiefPosition: detectedPosition);
+        
+    }
 
     void AlertState()
     {
