@@ -35,7 +35,7 @@ public class policeActuator : MonoBehaviour
         agent.stoppingDistance = 0f;
         // Establecer el destino al que debe moverse el polic�a
         agent.SetDestination(targetPosition);
-        MakeNopise();
+        MakeNoise();
     }
 
     //Detener al polic�a
