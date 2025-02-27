@@ -14,6 +14,11 @@ public class policeBrain : MonoBehaviour
     private const float maxSearchTime = 7f; // Tiempo máximo en búsqueda antes de volver a patrullar
     private bool endAction = false;
     private Dictionary<string, object> worldState;
+    // Waypoints asignados desde Unity para la puerta y la sala de tesoros
+    [SerializeField] private Transform doorWaypoint;
+    [SerializeField] private Transform treasureRoomWaypoint;
+    private bool searchPointSet = false; // Define searchPointSet as a private field
+    private Vector3 currentSearchPoint; // Define currentSearchPoint as a private field
 
     void Awake()
     {
@@ -56,7 +61,7 @@ public class policeBrain : MonoBehaviour
                 break;
 
             case PoliceState.Alert:
-                AlertState();
+                SearchForThief(); // La lógica es la misma que en el estado de búsqueda, cambia que la posición del ladrón es una aproximación
                 searchTimer += Time.deltaTime;
                 if ((bool)worldState["isThiefSeen"])
                 {
@@ -111,7 +116,7 @@ public class policeBrain : MonoBehaviour
                 break;
 
             case PoliceState.CampTreasure:
-                StayAtTreasureRoom();
+                GoToTreasureRoom(); // Al no indicarle más waypoints, se quedará en la posición del tesoro
                 if ((bool)worldState["isThiefSeen"])
                 {
                     currentState = PoliceState.Pursuing;
@@ -170,17 +175,16 @@ public class policeBrain : MonoBehaviour
         Debug.Log("Ruido detectado en zona aproximada: " + zonaAproximada);
     }
     
-    public void SomeoneSeen(bool detected, Vector3 detectedPosition)
+    public void SomeoneSeen(Vector3 detectedPosition)
     {
-        UpdateState(isThiefSeen: true, thiefPosition: detectedPosition);
-        
+        UpdateState(isThiefSeen: true, thiefPosition: detectedPosition);   
     }
 
-    void AlertState()
-    {
-        Debug.Log("Policía en estado de alerta, buscando al ladrón.");
-        // Lógica para buscar al ladrón o actuar en estado de alerta
-    }
+    // void AlertState()
+    // {
+    //     Debug.Log("Policía en estado de alerta, buscando al ladrón.");
+    //     // Lógica para buscar al ladrón o actuar en estado de alerta. Es la misma lógica que Search
+    // }
 
     void PursueThief()
     {
@@ -198,19 +202,40 @@ public class policeBrain : MonoBehaviour
     {
         Debug.Log("Buscando al ladrón...");
         // Lógica para buscar al ladrón en el área, por ejemplo, patrullando áreas cercanas
+        // Si aún no se ha definido un punto de búsqueda, se genera uno aleatorio
+        if (!searchPointSet)
+        {
+            float searchRadius = 10f; // Define el radio de búsqueda alrededor de la última posición conocida
+            Vector3 thiefPosition = (Vector3)worldState["thiefPosition"];
+            Vector3 currentSearchPoint = thiefPosition + new Vector3(Random.Range(-searchRadius, searchRadius), 0, Random.Range(-searchRadius, searchRadius));
+            searchPointSet = true;
+            actuator.MoveToTarget(currentSearchPoint);
+            Debug.Log("Buscando en punto aleatorio: " + currentSearchPoint);
+        }
+        else
+        {
+            // Si el policía ya alcanzó el punto, se genera uno nuevo
+            if (Vector3.Distance(transform.position, currentSearchPoint) < 2f)
+            {
+                searchPointSet = false;
+            }
+        }
     }
     
     void GoToTreasureRoom()
     {
-
+        actuator.MoveToTarget(treasureRoomWaypoint.position);
     }
-    void StayAtTreasureRoom()
-    {
+    // void StayAtTreasureRoom()
+    // {
+    //     GoToTreasureRoom();
+    
+    // }
 
-    }
+
     void StayAtDoor()
     {
-
+        actuator.MoveToTarget(doorWaypoint.position);
     }
 
 
