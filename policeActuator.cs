@@ -50,7 +50,10 @@ public class policeActuator : MonoBehaviour
         policeSensor[] policeSensors = FindObjectsOfType<policeSensor>();
         foreach (policeSensor sensor in policeSensors)
         {
-            sensor.DetectNoise(transform.position);
+            if (sensor.gameObject != this.gameObject)
+            {
+                sensor.DetectNoise(transform.position);
+            }
         }
     }
 

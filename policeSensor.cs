@@ -60,7 +60,7 @@ public class policeSensor : MonoBehaviour
         }
 
         // Actualizamos el estado con la informaci�n de si se detect� algo
-        policeBrain.SomeoneSeen(detectedPosition);
+        policeBrain.SomeoneSeen(detected, detectedPosition);
     }
 
     // M�todo para dibujar el campo de visi�n del polic�a
@@ -89,7 +89,7 @@ public class policeSensor : MonoBehaviour
         DrawFieldOfView(); // Dibuja el campo de visi�n
     }
 
-    public float noiseDetectionRadius = 10f; // Radio fijo en el que se puede detectar el ruido
+    public float noiseDetectionRadius = 100f; // Radio fijo en el que se puede detectar el ruido
     public float noiseMarginError = 5f; // Margen de error para aproximar la zona del ruido
 
     private policeBrain brain;
@@ -109,6 +109,7 @@ public class policeSensor : MonoBehaviour
         if (distance <= noiseDetectionRadius)
         {
             brain.OnNoiseDetected(approximateZone);
+            Debug.Log("Se ha escuchado algo");
         }
     }
     
