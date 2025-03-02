@@ -258,16 +258,14 @@ public class policeBrain : MonoBehaviour
         if (!searchPointSet_S)
         {
             float searchRadius = 50f; // Define el radio de b�squeda alrededor de la �ltima posici�n conocida
-            Vector3 thiefPosition = (Vector3)worldState["thiefPosition"];
-            currentSearchPoint = thiefPosition + new Vector3(Random.Range(-searchRadius, searchRadius), 0, Random.Range(-searchRadius, searchRadius));
+            // Vector3 thiefPosition = (Vector3)worldState["thiefPosition"];
+            currentSearchPoint = transform.position + new Vector3(Random.Range(-searchRadius, searchRadius), 0, Random.Range(-searchRadius, searchRadius));
             searchPointSet_S = true;
             Debug.Log("Buscando: Buscando en punto aleatorio: " + currentSearchPoint);
         }
         else
         {
-            Debug.Log("Buscando: Ya tengo un punto");
             actuator.MoveToTarget(currentSearchPoint);
-            // Si el polic�a ya alcanz� el punto o se para porque no puede alcanzarlo, se genera uno nuevo
             if (Vector3.Distance(transform.position, currentSearchPoint) < 2f)
             {
                 Debug.Log("Buscando: Ya llegué al punto");
