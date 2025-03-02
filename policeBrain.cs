@@ -132,7 +132,7 @@ public class policeBrain : MonoBehaviour
                     else
                     {
                         Debug.Log("Lluegué a mi patrulla");
-                        UpdateState(WithTreasure: true);
+                        UpdateState(WithTreasure: false, isThiefHeard: false); // ya no lo estoy escuchando;
                         currentState = PoliceState.Patrolling;
                     }
                     // Debug.Log("Vuelvo a patrullar");
@@ -259,15 +259,16 @@ public class policeBrain : MonoBehaviour
         // Si a�n no se ha definido un punto de b�squeda, se genera uno aleatorio
         if (!searchPointSet_S)
         {
-            float searchRadius = 50f; // Define el radio de b�squeda alrededor de la �ltima posici�n conocida
+            float searchRadius = 100f; // Define el radio de b�squeda alrededor de la �ltima posici�n conocida
             // Vector3 thiefPosition = (Vector3)worldState["thiefPosition"];
             currentSearchPoint = transform.position + new Vector3(Random.Range(-searchRadius, searchRadius), 0, Random.Range(-searchRadius, searchRadius));
             searchPointSet_S = true;
             Debug.Log("Buscando: Buscando en punto aleatorio: " + currentSearchPoint);
+            actuator.MoveToTarget(currentSearchPoint);
         }
         else
         {
-            actuator.MoveToTarget(currentSearchPoint);
+            
             if (Vector3.Distance(transform.position, currentSearchPoint) < 2f)
             {
                 Debug.Log("Buscando: Ya llegué al punto");
