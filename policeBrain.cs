@@ -68,11 +68,13 @@ public class policeBrain : MonoBehaviour
                 searchTimer += Time.deltaTime;
                 if ((bool)worldState["isThiefSeen"])
                 {
+                    searchTimer = 0;
                     Debug.Log("cambiando de alerta a perseguir");
                     currentState = PoliceState.Pursuing;
                 }
                 else if (searchTimer >= maxSearchTime)
                 {
+                    searchTimer = 0;
                     Debug.Log("cambiando de alerta a verificar");
                     currentState = PoliceState.VerifyTreasure;
                 }
@@ -295,9 +297,13 @@ public class policeBrain : MonoBehaviour
 
     bool HasReachedPatrolCheckpoint()
     {
-        float checkpointDistanceThreshold = 20f; // Distancia para considerar que llegó al checkpoint
+        float checkpointDistanceThreshold = 5f; // Distancia para considerar que llegó al checkpoint
+        Vector3 posActual = transform.position;
+        Vector3 posCheckpoint = actuator.wayPoint[0].position;
+        posActual.y = 0;
+        posCheckpoint.y = 0; // ignorar el eje y
 
-        if (Vector3.Distance(transform.position, actuator.wayPoint[0].position) < checkpointDistanceThreshold)
+        if (Vector3.Distance(posActual, posCheckpoint) < checkpointDistanceThreshold)
         {
             return true;
         }
