@@ -17,8 +17,8 @@ public class policeBrain : MonoBehaviour
     [SerializeField] private Transform doorWaypoint;
     [SerializeField] private Transform treasureRoomWaypoint;
     private bool searchPointSet = false;
+    private bool searchPointSet_S = false;
     private Vector3 currentSearchPoint;
-
     void Awake()
     {
         // Buscar los componentes dentro del mismo GameObject
@@ -28,7 +28,8 @@ public class policeBrain : MonoBehaviour
             {"isThiefSeen", false},
             {"isTreasureStolen", false},
             {"thiefPosition", Vector3.zero},
-            {"noisePosition", Vector3.zero}
+            {"noisePosition", Vector3.zero},
+            {"WithTreasure", false}
         };
         sensor = GetComponent<policeSensor>();
         actuator = GetComponent<policeActuator>();
@@ -105,26 +106,31 @@ public class policeBrain : MonoBehaviour
                 break;
 
             case PoliceState.VerifyTreasure:
-                GoToTreasureRoom();
+                GoToTreasureRoom(); // añadir que al salir vueolva a cambiar su variable
                 if ((bool)worldState["isThiefSeen"])
                 {
+                    UpdateState(WithTreasure: true);
                     currentState = PoliceState.Pursuing;
                 }
-                else if ((bool)worldState["isTreasureStolen"])
+                else if ((bool)worldState["isTreasureStolen"] && (bool)worldState["WithTreasure"])
                 {
                     Debug.Log("Vigilaré la puerta");
+                    UpdateState(WithTreasure: true);
                     currentState = PoliceState.CampDoor;
                 }
-                else if (!(bool)worldState["isTreasureStolen"])
+                else if (!(bool)worldState["isTreasureStolen"] && (bool)worldState["WithTreasure"])
                 {
-                    // // Si aún no ha alcanzado un checkpoint, moverse a uno
+                    
+
                     if (!HasReachedPatrolCheckpoint())
                     {
+                        Debug.Log("Todavia no lluegue");
                         actuator.MoveToTarget(actuator.wayPoint[0].position);
                     }
                     else
                     {
                         Debug.Log("Lluegué a mi patrulla");
+                        UpdateState(WithTreasure: true);
                         currentState = PoliceState.Patrolling;
                     }
                     // Debug.Log("Vuelvo a patrullar");
@@ -160,7 +166,7 @@ public class policeBrain : MonoBehaviour
         worldState[key] = value;
     }
 
-    public void UpdateState(bool? isThiefHeard = null, bool? isThiefSeen = null, Vector3? thiefPosition = null, Vector3? noisePosition = null, bool? isTreasureStolen = null)
+    public void UpdateState(bool? isThiefHeard = null, bool? isThiefSeen = null, Vector3? thiefPosition = null, Vector3? noisePosition = null, bool? isTreasureStolen = null, bool? WithTreasure = null)
     {
         if (isThiefHeard.HasValue)
         {
@@ -186,13 +192,20 @@ public class policeBrain : MonoBehaviour
         {
             UpdateWorldState("isTreasureStolen", isTreasureStolen.Value);
         }
+
+        if (WithTreasure.HasValue)
+        {
+            UpdateWorldState("WithTreasure", WithTreasure.Value);
+        }
+
+
     }
     // M�todo para recibir la detecci�n de ruido con una zona aproximada.
     public void OnNoiseDetected(Vector3 zonaAproximada)
     {
         // Actualiza el estado del mundo: se ha escuchado un ruido y se asigna la zona aproximada.
         UpdateState(isThiefHeard: true, noisePosition: zonaAproximada);
-        Debug.Log("Ruido detectado en zona aproximada: " + zonaAproximada);
+        // Debug.Log("Ruido detectado en zona aproximada: " + zonaAproximada);
     }
 
     public void SomeoneSeen(bool detected, Vector3 detectedPosition)
@@ -212,12 +225,13 @@ public class policeBrain : MonoBehaviour
             currentSearchPoint = noisePosition + new Vector3(Random.Range(-searchRadius, searchRadius), 0, Random.Range(-searchRadius, searchRadius));
             searchPointSet = true;
             actuator.MoveToTarget(currentSearchPoint);
-            Debug.Log("Buscando en punto aleatorio: " + currentSearchPoint);
+            Debug.Log("Alerta: buscan en punto aleatorio: " + currentSearchPoint);
         }
         else
         {
             // Si el polic�a ya alcanz� el punto o se para porque no puede alcanzarlo, se genera uno nuevo
-            if (Vector3.Distance(transform.position, currentSearchPoint) < 2f || GetComponent<UnityEngine.AI.NavMeshAgent>().velocity.magnitude == 0.0f)
+            var navMeshAgent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (Vector3.Distance(transform.position, currentSearchPoint) < 2f || (navMeshAgent != null && navMeshAgent.velocity.magnitude == 0.0f))
             {
                 searchPointSet = false;
             }
@@ -241,21 +255,23 @@ public class policeBrain : MonoBehaviour
         
         // L�gica para buscar al ladr�n en el �rea, por ejemplo, patrullando �reas cercanas
         // Si a�n no se ha definido un punto de b�squeda, se genera uno aleatorio
-        if (!searchPointSetB)
+        if (!searchPointSet_S)
         {
             float searchRadius = 50f; // Define el radio de b�squeda alrededor de la �ltima posici�n conocida
             Vector3 thiefPosition = (Vector3)worldState["thiefPosition"];
             currentSearchPoint = thiefPosition + new Vector3(Random.Range(-searchRadius, searchRadius), 0, Random.Range(-searchRadius, searchRadius));
-            searchPointSetB = true;
-            actuator.MoveToTarget(currentSearchPoint);
-            Debug.Log("Buscando en punto aleatorio: " + currentSearchPoint);
+            searchPointSet_S = true;
+            Debug.Log("Buscando: Buscando en punto aleatorio: " + currentSearchPoint);
         }
         else
         {
+            Debug.Log("Buscando: Ya tengo un punto");
+            actuator.MoveToTarget(currentSearchPoint);
             // Si el polic�a ya alcanz� el punto o se para porque no puede alcanzarlo, se genera uno nuevo
-            if (Vector3.Distance(transform.position, currentSearchPoint) < 2f || GetComponent<UnityEngine.AI.NavMeshAgent>().velocity.magnitude == 0.0f)
+            if (Vector3.Distance(transform.position, currentSearchPoint) < 2f)
             {
-                searchPointSetB = false;
+                Debug.Log("Buscando: Ya llegué al punto");
+                searchPointSet_S = false;
             }
         }
     }
@@ -263,6 +279,12 @@ public class policeBrain : MonoBehaviour
     void GoToTreasureRoom()
     {
         actuator.MoveToTarget(treasureRoomWaypoint.position);
+            // Si el policía ya llegó (o está muy cerca) del tesoro, se establece WithTreasure a true
+        if (Vector3.Distance(transform.position, treasureRoomWaypoint.position) < 10f)
+        {
+            UpdateState(WithTreasure: true);
+            Debug.Log("Llegado al tesoro, WithTreasure = true");
+        }
     }
     // void StayAtTreasureRoom()
     // {
@@ -275,16 +297,13 @@ public class policeBrain : MonoBehaviour
 
     bool HasReachedPatrolCheckpoint()
     {
-        float checkpointDistanceThreshold = 2f; // Distancia para considerar que llegó al checkpoint
-        Vector3 currentPosition = transform.position;
+        float checkpointDistanceThreshold = 20f; // Distancia para considerar que llegó al checkpoint
 
-        foreach (Transform checkpoint in actuator.wayPoint)
+        if (Vector3.Distance(transform.position, actuator.wayPoint[0].position) < checkpointDistanceThreshold)
         {
-            if (Vector3.Distance(currentPosition, checkpoint.position) < checkpointDistanceThreshold)
-            {
-                return true;
-            }
+            return true;
         }
+        
         return false;
     }
 
