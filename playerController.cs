@@ -9,13 +9,13 @@ public class PlayerController : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        // Aseg�rate de que este objeto tiene un collider (puedes agregar un CapsuleCollider si es necesario)
+        // Aseg?rate de que este objeto tiene un collider (puedes agregar un CapsuleCollider si es necesario)
         if (GetComponent<Collider>() == null)
         {
-            gameObject.AddComponent<CapsuleCollider>(); // A�ade un collider si no tiene uno
+            gameObject.AddComponent<CapsuleCollider>(); // A?ade un collider si no tiene uno
         }
 
-        // Tambi�n aseg�rate de que est� en la capa correcta (por ejemplo, "Thief")
+        // Tambi?n aseg?rate de que est? en la capa correcta (por ejemplo, "Thief")
         gameObject.layer = LayerMask.NameToLayer("ladron");
     }
 
@@ -27,7 +27,7 @@ public class PlayerController : MonoBehaviour
 
         Vector3 movement = new Vector3(moveX, 0, moveZ) * speed * Time.deltaTime;
         transform.Translate(movement, Space.World);
-    
+
         if (movement.magnitude > 0)
         {
             MakeNoise();
@@ -42,5 +42,26 @@ public class PlayerController : MonoBehaviour
         {
             sensor.DetectNoise(transform.position);
         }
+    }
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("tesoro"))
+        {
+            // El ladrón recoge el tesoro
+            CogerTesoro(other.gameObject);
+        }
+    }
+    void CogerTesoro(GameObject tesoro)
+    {
+        
+        
+
+        // Desactiva solo la visibilidad o interacción del tesoro (por ejemplo, desactivando el MeshRenderer)
+        tesoro.GetComponent<MeshRenderer>().enabled = false;
+
+        // También puedes desactivar otras componentes como los colliders si lo deseas
+        tesoro.GetComponent<Collider>().enabled = true;
+
+        Debug.Log("¡El ladrón ha cogido el tesoro!");
     }
 }
