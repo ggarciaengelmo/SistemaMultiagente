@@ -54,7 +54,7 @@ public class PlayerController : MonoBehaviour
     void CogerTesoro(GameObject tesoro)
     {
         
-        
+        GlobalGameState.TreasureStolen = true;
 
         // Desactiva solo la visibilidad o interacción del tesoro (por ejemplo, desactivando el MeshRenderer)
         tesoro.GetComponent<MeshRenderer>().enabled = false;
