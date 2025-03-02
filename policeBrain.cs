@@ -241,12 +241,12 @@ public class policeBrain : MonoBehaviour
         
         // L�gica para buscar al ladr�n en el �rea, por ejemplo, patrullando �reas cercanas
         // Si a�n no se ha definido un punto de b�squeda, se genera uno aleatorio
-        if (!searchPointSet)
+        if (!searchPointSetB)
         {
             float searchRadius = 50f; // Define el radio de b�squeda alrededor de la �ltima posici�n conocida
             Vector3 thiefPosition = (Vector3)worldState["thiefPosition"];
             currentSearchPoint = thiefPosition + new Vector3(Random.Range(-searchRadius, searchRadius), 0, Random.Range(-searchRadius, searchRadius));
-            searchPointSet = true;
+            searchPointSetB = true;
             actuator.MoveToTarget(currentSearchPoint);
             Debug.Log("Buscando en punto aleatorio: " + currentSearchPoint);
         }
@@ -255,7 +255,7 @@ public class policeBrain : MonoBehaviour
             // Si el polic�a ya alcanz� el punto o se para porque no puede alcanzarlo, se genera uno nuevo
             if (Vector3.Distance(transform.position, currentSearchPoint) < 2f || GetComponent<UnityEngine.AI.NavMeshAgent>().velocity.magnitude == 0.0f)
             {
-                searchPointSet = false;
+                searchPointSetB = false;
             }
         }
     }
