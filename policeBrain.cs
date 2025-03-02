@@ -2,6 +2,12 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+public static class GlobalGameState
+{
+    public static bool TreasureStolen = false;
+}
+
+
 public class policeBrain : MonoBehaviour
 {
 
@@ -111,19 +117,17 @@ public class policeBrain : MonoBehaviour
                 GoToTreasureRoom(); // añadir que al salir vueolva a cambiar su variable
                 if ((bool)worldState["isThiefSeen"])
                 {
-                    UpdateState(WithTreasure: true);
+                    UpdateState(WithTreasure: false);
                     currentState = PoliceState.Pursuing;
                 }
                 else if ((bool)worldState["isTreasureStolen"] && (bool)worldState["WithTreasure"])
                 {
                     Debug.Log("Vigilaré la puerta");
-                    UpdateState(WithTreasure: true);
+                    UpdateState(WithTreasure: false);
                     currentState = PoliceState.CampDoor;
                 }
                 else if (!(bool)worldState["isTreasureStolen"] && (bool)worldState["WithTreasure"])
                 {
-                    
-
                     if (!HasReachedPatrolCheckpoint())
                     {
                         Debug.Log("Todavia no lluegue");
@@ -135,9 +139,6 @@ public class policeBrain : MonoBehaviour
                         UpdateState(WithTreasure: false, isThiefHeard: false); // ya no lo estoy escuchando;
                         currentState = PoliceState.Patrolling;
                     }
-                    // Debug.Log("Vuelvo a patrullar");
-                    // currentState = PoliceState.Patrolling;
-                   
                 }
                 break;
 
@@ -212,7 +213,7 @@ public class policeBrain : MonoBehaviour
 
     public void SomeoneSeen(bool detected, Vector3 detectedPosition)
     {
-        UpdateState(isThiefSeen: detected, thiefPosition: detectedPosition);
+        UpdateState(isThiefSeen: detected, thiefPosition: detectedPosition, isTreasureStolen: GlobalGameState.TreasureStolen);
 
     }
     void AlertState()
@@ -283,8 +284,7 @@ public class policeBrain : MonoBehaviour
             // Si el policía ya llegó (o está muy cerca) del tesoro, se establece WithTreasure a true
         if (Vector3.Distance(transform.position, treasureRoomWaypoint.position) < 10f)
         {
-            UpdateState(WithTreasure: true);
-            Debug.Log("Llegado al tesoro, WithTreasure = true");
+            UpdateState(WithTreasure: true, isTreasureStolen: GlobalGameState.TreasureStolen);
         }
     }
     // void StayAtTreasureRoom()
