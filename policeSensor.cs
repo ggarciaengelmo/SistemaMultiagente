@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -39,27 +39,36 @@ public class policeSensor : MonoBehaviour
 
         for (int i = 0; i < rays; i++)
         {
-            // Calculamos el �ngulo de cada rayo
+            // Calculamos el ángulo de cada rayo
             float angle = -fieldOfView / 2 + i * angleStep;
             Vector3 direction = Quaternion.Euler(0, angle, 0) * transform.forward;
 
             // Dibujamos el rayo siempre, aunque no detecte nada
-            Color rayColor = Color.red; // Color rojo por defecto (sin detectar)
+            Color rayColor = Color.red; // Rojo por defecto (no detecta nada)
 
-            // Lanzamos el rayo y verificamos si detecta algo
-            if (Physics.Raycast(transform.position, direction, out RaycastHit hit, detectionRadius, targetMask))
+            // Lanzamos el rayo y verificamos si hay un obstáculo o si detecta al ladrón
+            if (Physics.Raycast(transform.position, direction, out RaycastHit hit, detectionRadius))
             {
-                rayColor = Color.green; // Cambia a verde si detecta algo
-                detected = true;
-                detectedPosition = hit.point;
-                Debug.Log("Ladr�n detectado en la posici�n: " + hit.point); // Muestra la posici�n de la detecci�n
+                // Si el rayo choca con un obstáculo antes de llegar al ladrón, no se detecta
+                if (((1 << hit.collider.gameObject.layer) & obstacleMask) != 0)
+                {
+                    rayColor = Color.blue; // Obstáculo detectado, el rayo se bloquea
+                }
+                else if (((1 << hit.collider.gameObject.layer) & targetMask) != 0)
+                {
+                    // Solo detecta al ladrón si no hay obstáculos en el medio
+                    rayColor = Color.green; // Detectó al ladrón
+                    detected = true;
+                    detectedPosition = hit.point;
+                    Debug.Log("Ladrón detectado en la posición: " + hit.point);
+                }
             }
 
             // Dibujamos el rayo con el color correspondiente
             Debug.DrawRay(transform.position, direction * detectionRadius, rayColor);
         }
 
-        // Actualizamos el estado con la informaci�n de si se detect� algo
+        // Actualizamos el estado con la información de si se detectó algo
         policeBrain.SomeoneSeen(detected, detectedPosition);
     }
 
@@ -89,8 +98,8 @@ public class policeSensor : MonoBehaviour
         DrawFieldOfView(); // Dibuja el campo de visi�n
     }
 
-    public float noiseDetectionRadius = 100f; // Radio fijo en el que se puede detectar el ruido
-    public float noiseMarginError = 5f; // Margen de error para aproximar la zona del ruido
+    public float noiseDetectionRadius = 10f; // Radio fijo en el que se puede detectar el ruido
+    public float noiseMarginError = 30f; // Margen de error para aproximar la zona del ruido
 
     private policeBrain brain;
 
@@ -109,7 +118,7 @@ public class policeSensor : MonoBehaviour
         if (distance <= noiseDetectionRadius)
         {
             brain.OnNoiseDetected(approximateZone);
-            Debug.Log("Se ha escuchado algo");
+            Debug.Log("se ha escuchado algo");
         }
     }
     

@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -50,10 +50,10 @@ public class policeActuator : MonoBehaviour
         policeSensor[] policeSensors = FindObjectsOfType<policeSensor>();
         foreach (policeSensor sensor in policeSensors)
         {
-            if (sensor.gameObject != this.gameObject)
+            if (sensor.gameObject != this.gameObject && sensor.gameObject.tag != "policia")
             {
-                sensor.DetectNoise(transform.position);
-            }
+               sensor.DetectNoise(transform.position);
+            }       
         }
     }
 
