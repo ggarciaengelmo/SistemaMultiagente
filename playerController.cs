@@ -36,7 +36,7 @@ public class PlayerController : MonoBehaviour
 
     void MakeNoise()
     {
-        // Encuentra todos los sensores de polic铆as en la escena y env铆a la detecci贸n de ruido
+        // Encuentra todos los sensores de polic韆s en la escena y env韆 la detecci髇 de ruido
         policeSensor[] policeSensors = FindObjectsOfType<policeSensor>();
         foreach (policeSensor sensor in policeSensors)
         {
@@ -47,21 +47,38 @@ public class PlayerController : MonoBehaviour
     {
         if (other.CompareTag("tesoro"))
         {
-            // El ladr贸n recoge el tesoro
+            // El ladr髇 recoge el tesoro
             CogerTesoro(other.gameObject);
+        }
+        if (other.CompareTag("door"))
+        {
+            // Verificamos si la variable TreasureStolen es true en la clase GlobalGameState
+            if (GlobalGameState.TreasureStolen)
+            {
+                // Desactivamos el GameObject (lo hace desaparecer)
+                gameObject.SetActive(false);
+
+                // O, si prefieres destruirlo completamente:
+                // Destroy(gameObject);
+
+                Debug.Log("l tesoro ha sido robado y el punto desaparece!");
+            }
         }
     }
     void CogerTesoro(GameObject tesoro)
     {
-        
-        GlobalGameState.TreasureStolen = true;
 
-        // Desactiva solo la visibilidad o interacci贸n del tesoro (por ejemplo, desactivando el MeshRenderer)
+
+        GlobalGameState.TreasureStolen = true;
+        // Desactiva solo la visibilidad o interacci髇 del tesoro (por ejemplo, desactivando el MeshRenderer)
         tesoro.GetComponent<MeshRenderer>().enabled = false;
 
-        // Tambi茅n puedes desactivar otras componentes como los colliders si lo deseas
+        // Tambi閚 puedes desactivar otras componentes como los colliders si lo deseas
         tesoro.GetComponent<Collider>().enabled = true;
 
-        Debug.Log("隆El ladr贸n ha cogido el tesoro!");
+        Debug.Log("l ladr髇 ha cogido el tesoro!");
     }
 }
+
+
+

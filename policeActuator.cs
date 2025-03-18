@@ -52,8 +52,8 @@ public class policeActuator : MonoBehaviour
         {
             if (sensor.gameObject != this.gameObject && sensor.gameObject.tag != "policia")
             {
-               sensor.DetectNoise(transform.position);
-            }       
+                sensor.DetectNoise(transform.position);
+            }
         }
     }
 

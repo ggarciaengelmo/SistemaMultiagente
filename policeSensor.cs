@@ -10,13 +10,14 @@ public class policeSensor : MonoBehaviour
 
     public LayerMask targetMask; // Para detectar solo al ladr�n
     public LayerMask obstacleMask; // Para detectar obst�culos
+    public LayerMask tesoromask;
 
     private policeBrain policeBrain;
 
     // Start is called before the first frame update
     void Start()
     {
-        policeBrain = GetComponent<policeBrain>(); // Asumiendo que policeBrain est� en el mismo GameObject
+        // Asumiendo que policeBrain est� en el mismo GameObject
         StartCoroutine(DetectRoutine());
     }
 
@@ -60,7 +61,13 @@ public class policeSensor : MonoBehaviour
                     rayColor = Color.green; // Detectó al ladrón
                     detected = true;
                     detectedPosition = hit.point;
-                    Debug.Log("Ladrón detectado en la posición: " + hit.point);
+                }
+
+                // Verificar si el objeto detectado está en la capa Tesoro
+                if (((1 << hit.collider.gameObject.layer) & tesoromask) != 0)
+                {
+                    Debug.Log("¡El policía ha visto un tesoro!");
+                    Debug.Log("Objeto detectado: " + hit.collider.gameObject.name); // Verificar qué objeto está siendo detectado
                 }
             }
 
@@ -96,10 +103,11 @@ public class policeSensor : MonoBehaviour
     void Update()
     {
         DrawFieldOfView(); // Dibuja el campo de visi�n
+
     }
 
     public float noiseDetectionRadius = 10f; // Radio fijo en el que se puede detectar el ruido
-    public float noiseMarginError = 30f; // Margen de error para aproximar la zona del ruido
+    public float noiseMarginError = 5f; // Margen de error para aproximar la zona del ruido
 
     private policeBrain brain;
 
@@ -117,13 +125,13 @@ public class policeSensor : MonoBehaviour
         float distance = Vector3.Distance(transform.position, noiseOrigin);
         if (distance <= noiseDetectionRadius)
         {
-            brain.OnNoiseDetected(approximateZone);
+            policeBrain.OnNoiseDetected(approximateZone);
             Debug.Log("se ha escuchado algo");
         }
     }
     
     void Awake()
     {
-        brain = GetComponent<policeBrain>();
+        policeBrain = GetComponent<policeBrain>();
     }
 }
