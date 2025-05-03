@@ -41,13 +41,6 @@ public class policeBrain : MonoBehaviour
 
     [SerializeField] private Transform interceptWaypoint1;
     [SerializeField] private Transform interceptWaypoint2;
-
-
-
-
-
-
-
     [SerializeField] private Transform doorWaypoint;
     [SerializeField] private Transform treasureRoomWaypoint;
 
@@ -114,7 +107,7 @@ public class policeBrain : MonoBehaviour
         }
         else if (assignedRole == "vigilar")
         {
-            currentIntention = "ProtectDoor";
+            currentIntention = "ProtectDoor"; // Todo Proteger puerta o tesoro depensiendo de si hay tesoro
         }
         // El coordinador, que vio al ladrón, persigue
         else if (isCoordinator && (bool)worldState["isThiefSeen"])
@@ -365,28 +358,123 @@ public class policeBrain : MonoBehaviour
 
 
     }
-    IEnumerator AssignRolesAfterDelay()
+    /// <summary>
+    /// Calcula la distancia desde la posición de cada policía que envió una propuesta
+    /// hasta un waypoint específico y devuelve una lista ordenada por distancia.
+    /// </summary>
+    /// <param name="waypoint">El punto de referencia para calcular las distancias.</param>
+    /// <param name="candidates">El diccionario de candidatos (id -> posición) a considerar.</param>
+    /// <returns>Una lista de tuplas (id del policía, distancia al waypoint) ordenada ascendentemente por distancia.</returns>
+    private List<(string id, float distance)> QuienEstaCerca(Vector3 waypoint, Dictionary<string, Vector3> candidates)
     {
-        yield return new WaitForSeconds(2f);
-
-        Vector3 thiefPos = (Vector3)worldState["thiefPosition"];
-
-        // Ordenamos policías por distancia al ladrón
-        List<(string id, float distance)> distances = new List<(string, float)>();
-        foreach (var entry in proposalsReceived)
+        if (candidates == null || candidates.Count == 0)
         {
-            float dist = Vector3.Distance(entry.Value, thiefPos);
-            distances.Add((entry.Key, dist));
+            return new List<(string id, float distance)>(); // Devuelve lista vacía si no hay candidatos
         }
 
-        distances.Sort((a, b) => a.distance.CompareTo(b.distance));
+        return candidates
+            .Select(entry => (id: entry.Key, distance: Vector3.Distance(entry.Value, waypoint)))
+            .OrderBy(item => item.distance)
+            .ToList();
+    }
 
-        if (distances.Count >= 1) SendAccept(distances[0].id, "cortar_camino_1");
-        if (distances.Count >= 2) SendAccept(distances[1].id, "cortar_camino_2");
-        if (distances.Count >= 3) SendAccept(distances[2].id, "vigilar");
+    /// <summary>
+    /// Devuelve los costes calculados y ordenados
+    /// </summary>
+    /// <param name="thiefPosition"></param>
+    /// <returns></returns>
+    private List<(string id, float distance)> CalculateAndSortCosts(Vector3 thiefPosition)
+    {
+        // Calculo distancia al ladrón
+        return QuienEstaCerca(thiefPosition);
 
+        // Calculo según waypoints
+
+    }
+    private List<(string id, string role)> DetermineRoleAssignmentsByProximity(Transform interceptionPoint1, Transform interceptionPoint2)
+    {
+        var assignments = new List<(string id, string role)>();
+        // Copiamos el diccionario para poder modificarlo sin afectar el original durante el cálculo
+        var remainingCandidates = new Dictionary<string, Vector3>(proposalsReceived);
+
+        // Roles a asignar
+        const string ROLE_INTERCEPT_1 = "cortar_camino_1";
+        const string ROLE_INTERCEPT_2 = "cortar_camino_2";
+        const string ROLE_GUARD = "vigilar";
+
+        // --- Asignación 1: Más cercano a interceptionPoint1 ---
+        if (interceptionPoint1 != null && remainingCandidates.Count > 0)
+        {
+            List<(string id, float distance)> sortedByWp1 = QuienEstaCerca(interceptionPoint1.position, remainingCandidates);
+            if (sortedByWp1.Count > 0)
+            {
+                string assignedId = sortedByWp1[0].id;
+                assignments.Add((assignedId, ROLE_INTERCEPT_1));
+                remainingCandidates.Remove(assignedId); // Quitar al asignado de los candidatos
+                Debug.Log($"Asignación Preliminar 1: {assignedId} -> {ROLE_INTERCEPT_1}");
+            }
+        }
+        else if (interceptionPoint1 == null)
+        {
+             Debug.LogWarning($"{gameObject.name}: El primer waypoint de intercepción no es válido. No se puede asignar {ROLE_INTERCEPT_1}.");
+        }
+
+        // --- Asignación 2: Más cercano (restante) a interceptionPoint2 ---
+        if (interceptionPoint2 != null && remainingCandidates.Count > 0)
+        {
+            List<(string id, float distance)> sortedByWp2 = QuienEstaCerca(interceptionPoint2.position, remainingCandidates);
+             if (sortedByWp2.Count > 0)
+            {
+                string assignedId = sortedByWp2[0].id;
+                assignments.Add((assignedId, ROLE_INTERCEPT_2));
+                remainingCandidates.Remove(assignedId); // Quitar al asignado de los candidatos
+                Debug.Log($"Asignación Preliminar 2: {assignedId} -> {ROLE_INTERCEPT_2}");
+            }
+        }
+         else if (interceptionPoint2 == null)
+        {
+             Debug.LogWarning($"{gameObject.name}: El segundo waypoint de intercepción no es válido. No se puede asignar {ROLE_INTERCEPT_2}.");
+        }
+
+        // --- Asignación 3: Un restante para vigilar ---
+        // Simplemente tomamos el primero que quede en la lista de restantes.
+        if (remainingCandidates.Count > 0)
+        {
+            // Tomamos el primer ID que quede en el diccionario de restantes
+            string assignedId = remainingCandidates.Keys.First(); // Asumiendo que usas LINQ aquí, si no, usa el bucle foreach
+            assignments.Add((assignedId, ROLE_GUARD));
+            remainingCandidates.Remove(assignedId);
+            Debug.Log($"Asignación Preliminar 3: {assignedId} -> {ROLE_GUARD}");
+        }
+
+        return assignments;
+    }
+
+    IEnumerator AssignRolesAfterDelay()
+    {
+        yield return new WaitForSeconds(2f); // Espera para recibir propuestas
+
+        // Asegurarse de que tenemos propuestas antes de asignar
+        if (proposalsReceived.Count == 0)
+        {
+            Debug.LogWarning($"{gameObject.name}: No se recibieron propuestas. No se asignarán roles.");
+            assigningRoles = false;
+            yield break;
+        }
+
+         // 1. Determinar las asignaciones basadas en proximidad a waypoints
+        List<(string id, string role)> roleAssignments = DetermineRoleAssignmentsByProximity(interceptWaypoint1, interceptWaypoint2);
+
+        // 2. Enviar los mensajes de aceptación para cada asignación
+        foreach (var assignment in roleAssignments)
+        {
+            SendAccept(assignment.id, assignment.role);
+        }
+
+        // 3. Limpiar estado
         proposalsReceived.Clear();
         assigningRoles = false;
+        Debug.Log($"{gameObject.name} ha terminado de asignar roles basados en waypoints.");
     }
 
     IEnumerator StartRoleAssignment()
