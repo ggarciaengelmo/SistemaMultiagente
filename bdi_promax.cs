@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
 [System.Serializable]
 public class RoleAssignment
@@ -39,10 +40,25 @@ public class policeBrain : MonoBehaviour
     private bool assigningRoles = false;
     private string assignedRole = null;
 
-    [SerializeField] private Transform interceptWaypoint1;
-    [SerializeField] private Transform interceptWaypoint2;
+    // Waypoints históricos
     [SerializeField] private Transform doorWaypoint;
     [SerializeField] private Transform treasureRoomWaypoint;
+    
+    // Waypoints de habitaciones para la subasta
+    [SerializeField] private Transform OxygenRoomWaypoint;
+
+    [SerializeField] private Transform AdminRoomWaypoint;
+
+    // Waypoints para interceptar
+    [SerializeField] private Transform interceptEast1;
+    [SerializeField] private Transform interceptEast2;
+    [SerializeField] private Transform interceptWest1;
+    [SerializeField] private Transform interceptWest2;
+    [SerializeField] private Transform interceptNorth1;
+    [SerializeField] private Transform interceptNorth2;
+
+
+
 
     void Awake()
     {
@@ -378,19 +394,6 @@ public class policeBrain : MonoBehaviour
             .ToList();
     }
 
-    /// <summary>
-    /// Devuelve los costes calculados y ordenados
-    /// </summary>
-    /// <param name="thiefPosition"></param>
-    /// <returns></returns>
-    private List<(string id, float distance)> CalculateAndSortCosts(Vector3 thiefPosition)
-    {
-        // Calculo distancia al ladrón
-        return QuienEstaCerca(thiefPosition);
-
-        // Calculo según waypoints
-
-    }
     private List<(string id, string role)> DetermineRoleAssignmentsByProximity(Transform interceptionPoint1, Transform interceptionPoint2)
     {
         var assignments = new List<(string id, string role)>();
@@ -450,6 +453,42 @@ public class policeBrain : MonoBehaviour
         return assignments;
     }
 
+    // Dependiendo del último lugar en el que se ha visto al ladrón, devuelve en que zona del mapa se encuentra
+    private string CalculateThiefRelativePosition()
+    {
+        // Intentar obtener la posición del ladrón del estado del mundo
+        if (worldState.TryGetValue("thiefPosition", out object thiefPosObj) && thiefPosObj is Vector3 thiefPos)
+        {   
+            if (thiefPos.x > -77f)
+            {
+                // Si el ladrón está más a la derecha del almacén/cafetería
+                return "East";
+            }
+            else if ((thiefPos.x < -600f ) || (Vector3.Distance(thiefPos, OxygenRoomWaypoint.position) < 100f) && Vector3.Distance(thiefPos, AdminRoomWaypoint.position) > 110f)
+            {
+                // Si no está el ladrón en admin y está en oxygeno o más a la izquierda que comunicaciones
+                return "West";
+            }
+            else if (thiefPos.z < 20f) 
+            {
+                // Si no está en ningún sitio de los anteriores pero está más al Norte qeu Cafetería
+                return "North";
+            } else 
+            {
+                // Está en cafetería (por descarte)
+                return "South";
+            }
+
+        }
+        else
+        {
+            Debug.LogWarning($"{gameObject.name}: No se pudo obtener una posición válida del ladrón para calcular la posición relativa.");
+        }
+
+        // Si no se cumple la condición o no hay posición válida
+        return string.Empty; 
+    }
+
     IEnumerator AssignRolesAfterDelay()
     {
         yield return new WaitForSeconds(2f); // Espera para recibir propuestas
@@ -462,8 +501,52 @@ public class policeBrain : MonoBehaviour
             yield break;
         }
 
-         // 1. Determinar las asignaciones basadas en proximidad a waypoints
-        List<(string id, string role)> roleAssignments = DetermineRoleAssignmentsByProximity(interceptWaypoint1, interceptWaypoint2);
+         
+        // 0: Se decide como será la subasta
+        string thiefRelativePosition = CalculateThiefRelativePosition();
+        Transform block1 = null; // Declarar block1
+        Transform block2 = null; // Declarar block2
+
+
+        if (thiefRelativePosition == "East")
+        {
+            block1 = interceptEast1;
+            block2 = interceptEast2;
+            Debug.Log($"{gameObject.name}: Ladrón detectado al Este. Usando waypoints East.");
+        }
+        else if (thiefRelativePosition == "West")
+        {
+            block1 = interceptWest1;
+            block2 = interceptWest2;
+            Debug.Log($"{gameObject.name}: Ladrón detectado al Oeste. Usando waypoints West.");
+        }
+        else if (thiefRelativePosition == "North")
+        {
+            block1 = interceptNorth1;
+            block2 = interceptNorth2;
+            Debug.Log($"{gameObject.name}: Ladrón detectado al Norte. Usando waypoints North.");
+        }
+        else if (thiefRelativePosition == "South")
+        {
+            if (worldState["isTreasureStolen"] == true)
+                block1 = doorWaypoint; // Que no escape
+                block2 = doorWaypoint;
+            else
+                block1 = treasureRoomWaypoint; // Que no robe
+                block2 = doorWaypoint; // Si llega a robar, ya está vigilada la salida
+            Debug.Log($"{gameObject.name}: Ladrón detectado al Sur.")
+        }
+        else
+        {
+            Debug.LogError($"{gameObject.name}: Error al asignar waypoints de intercepción (block1 o block2 son null). Zona: {thiefRelativePosition}");
+            assigningRoles = false;
+            yield break;
+        }
+        
+
+
+        // 1. Empieza la subasta una vez decida que va a ser
+        List<(string id, string role)> roleAssignments = DetermineRoleAssignmentsByProximity(block1, block2);
 
         // 2. Enviar los mensajes de aceptación para cada asignación
         foreach (var assignment in roleAssignments)
