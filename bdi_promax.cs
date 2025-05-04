@@ -57,6 +57,10 @@ public class policeBrain : MonoBehaviour
     [SerializeField] private Transform interceptNorth1;
     [SerializeField] private Transform interceptNorth2;
 
+    // Waypoints específicos para la intercepción (asignados dinámicamente)
+    private Transform interceptWaypoint1 = null;
+    private Transform interceptWaypoint2 = null;
+
 
 
 
@@ -123,7 +127,15 @@ public class policeBrain : MonoBehaviour
         }
         else if (assignedRole == "vigilar")
         {
-            currentIntention = "ProtectDoor"; // Todo Proteger puerta o tesoro depensiendo de si hay tesoro
+            // Decide si proteger la puerta o el tesoro basado en si ha sido robado
+            if ((bool)worldState["isTreasureStolen"])
+            {
+                currentIntention = "ProtectDoor"; // Si robado, proteger salida
+            }
+            else
+            {
+                currentIntention = "ProtectTreasure"; // Si no, proteger tesoro (necesitarás implementar esta acción)
+            }
         }
         // El coordinador, que vio al ladrón, persigue
         else if (isCoordinator && (bool)worldState["isThiefSeen"])
@@ -528,13 +540,17 @@ public class policeBrain : MonoBehaviour
         }
         else if (thiefRelativePosition == "South")
         {
-            if (worldState["isTreasureStolen"] == true)
+            if ((bool)worldState["isTreasureStolen"])
+            {
                 block1 = doorWaypoint; // Que no escape
                 block2 = doorWaypoint;
-            else
+            }
+            else 
+            {
                 block1 = treasureRoomWaypoint; // Que no robe
                 block2 = doorWaypoint; // Si llega a robar, ya está vigilada la salida
-            Debug.Log($"{gameObject.name}: Ladrón detectado al Sur.")
+            }
+            Debug.Log($"{gameObject.name}: Ladrón detectado al Sur.");
         }
         else
         {
@@ -543,7 +559,9 @@ public class policeBrain : MonoBehaviour
             yield break;
         }
         
-
+        // actualizar variables globales
+        interceptWaypoint1 = block1;
+        interceptWaypoint2 = block2;
 
         // 1. Empieza la subasta una vez decida que va a ser
         List<(string id, string role)> roleAssignments = DetermineRoleAssignmentsByProximity(block1, block2);
