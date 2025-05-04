@@ -80,153 +80,173 @@ public class policeBrain : MonoBehaviour
 
     }
 
-    void OnEnable()
+    void Start()
     {
         // Esto garantiza que, siempre que el script esté activo, esté escuchando
         CommunicationChannel.Instance.OnMessagePublished += OnMessageReceived;
         Debug.Log($"{gameObject.name} se ha suscrito al canal");
     }
 
-    void OnDisable()
-    {
-        // Limpieza segura
-        if (CommunicationChannel.Instance != null) 
-        { 
-            CommunicationChannel.Instance.OnMessagePublished -= OnMessageReceived;
-        }
-    }
-
-    //void Start(){
-    //    // ahora sí, me suscribo al canal de mensajes
-    //    CommunicationChannel.Instance.Subscribe(gameObject.name, OnMessageReceived);
-    //}
 
     void Update()
     {
-        switch (currentState)
+        if (assignedRole == null)
         {
-            case PoliceState.Patrolling:
-                Patrol();
-                if ((bool)worldState["isThiefHeard"] && !(bool)worldState["isThiefSeen"])
-                {
-                    // Si no ha sido visto pero escuchado
-                    Debug.Log("Estoy alerta");
-                    currentState = PoliceState.Alert;
-                }
-                if ((bool)worldState["isThiefSeen"])
-                {
-                    currentState = PoliceState.Pursuing;
-                }
-                break;
+            switch (currentState)
+            {
+                case PoliceState.Patrolling:
+                    Patrol();
+                    if ((bool)worldState["isThiefHeard"] && !(bool)worldState["isThiefSeen"])
+                    {
+                        // Si no ha sido visto pero escuchado
+                        Debug.Log("Estoy alerta");
+                        currentState = PoliceState.Alert;
+                    }
+                    if ((bool)worldState["isThiefSeen"])
+                    {
+                        currentState = PoliceState.Pursuing;
+                    }
+                    break;
 
-            case PoliceState.Pursuing:
-                PursueThief();
-                if (!(bool)worldState["isThiefSeen"]) // Cuando lo deje de ver
-                {
-                    Debug.Log("cambiando de perseguir a buscar");
-                    currentState = PoliceState.Searching;
-                }
-                break;
+                case PoliceState.Pursuing:
+                    PursueThief();
+                    if (!(bool)worldState["isThiefSeen"]) // Cuando lo deje de ver
+                    {
+                        Debug.Log("cambiando de perseguir a buscar");
+                        currentState = PoliceState.Searching;
+                    }
+                    break;
 
-            case PoliceState.Alert:
-                AlertState();
-                searchTimer += Time.deltaTime;
-                if ((bool)worldState["isThiefSeen"])
-                {
-                    searchTimer = 0;
-                    Debug.Log("cambiando de alerta a perseguir");
-                    currentState = PoliceState.Pursuing;
-                }
-                else if (searchTimer >= maxSearchTime) // Cuando lleve un tiempo alerta y no pasa nada...
-                {
-                    searchTimer = 0;
-                    Debug.Log("cambiando de alerta a verificar");
-                    currentState = PoliceState.VerifyTreasure;
-                }
-                break;
+                case PoliceState.Alert:
+                    AlertState();
+                    searchTimer += Time.deltaTime;
+                    if ((bool)worldState["isThiefSeen"])
+                    {
+                        searchTimer = 0;
+                        Debug.Log("cambiando de alerta a perseguir");
+                        currentState = PoliceState.Pursuing;
+                    }
+                    else if (searchTimer >= maxSearchTime) // Cuando lleve un tiempo alerta y no pasa nada...
+                    {
+                        searchTimer = 0;
+                        Debug.Log("cambiando de alerta a verificar");
+                        currentState = PoliceState.VerifyTreasure;
+                    }
+                    break;
 
-            case PoliceState.Searching:
-                SearchForThief();
-                searchTimer += Time.deltaTime;
+                case PoliceState.Searching:
+                    SearchForThief();
+                    searchTimer += Time.deltaTime;
 
-                if ((bool)worldState["isThiefSeen"])
-                {
-                    currentState = PoliceState.Pursuing;
-                    searchTimer = 0f;
-                }
-                else if (searchTimer >= maxSearchTime)
-                {
-                    // Tras verlo sabe si el tesoro ha sido robado
-                    if ((bool)worldState["isTreasureStolen"])
+                    if ((bool)worldState["isThiefSeen"])
+                    {
+                        currentState = PoliceState.Pursuing;
+                        searchTimer = 0f;
+                    }
+                    else if (searchTimer >= maxSearchTime)
+                    {
+                        // Tras verlo sabe si el tesoro ha sido robado
+                        if ((bool)worldState["isTreasureStolen"])
+                        {
+                            Debug.Log("Vigilaré la puerta");
+                            currentState = PoliceState.CampDoor;
+                            searchTimer = 0f;
+                        }
+                        else
+                        {
+                            Debug.Log("Vigilaré el tesoro");
+                            currentState = PoliceState.CampTreasure;
+                            searchTimer = 0f;
+                        }
+                        break;
+                    }
+                    break;
+
+                case PoliceState.VerifyTreasure:
+                    GoToTreasureRoom();
+                    if ((bool)worldState["isThiefSeen"])
+                    {
+                        UpdateState(WithTreasure: false);
+                        currentState = PoliceState.Pursuing;
+                    }
+                    else if ((bool)worldState["isTreasureStolen"] && (bool)worldState["WithTreasure"]) // Si veo que ha sido robado
+                    {
+                        Debug.Log("Vigilaré la puerta");
+                        UpdateState(WithTreasure: false);
+                        currentState = PoliceState.CampDoor;
+                    }
+                    else if (!(bool)worldState["isTreasureStolen"] && (bool)worldState["WithTreasure"]) // Si no ha sido robado
+                    {
+                        Debug.Log("Me vuelvo a mi patrulla");
+                        if (!HasReachedPatrolCheckpoint())
+                        {
+                            Debug.Log("Todavia no lluegue");
+                            actuator.MoveToTarget(actuator.wayPoint[0].position);
+                        }
+                        else
+                        {
+                            Debug.Log("Lluegué a mi patrulla");
+                            UpdateState(WithTreasure: false, isThiefHeard: false); // resetea el sonido
+                            currentState = PoliceState.Patrolling;
+                        }
+                    }
+
+                    break;
+
+                case PoliceState.CampTreasure:
+                    // Vete a la sala del tesoro y quedate allí (si está el tesoro)
+                    GoToTreasureRoom();
+                    if ((bool)worldState["isThiefSeen"])
+                    {
+                        currentState = PoliceState.Pursuing;
+                    }
+                    else if ((bool)worldState["isTreasureStolen"])
                     {
                         Debug.Log("Vigilaré la puerta");
                         currentState = PoliceState.CampDoor;
-                        searchTimer = 0f;
-                    }
-                    else
-                    {
-                        Debug.Log("Vigilaré el tesoro");
-                        currentState = PoliceState.CampTreasure;
-                        searchTimer = 0f;
                     }
                     break;
-                }
-                break;
 
-            case PoliceState.VerifyTreasure:
-                GoToTreasureRoom();
-                if ((bool)worldState["isThiefSeen"])
-                {
-                    UpdateState(WithTreasure: false);
-                    currentState = PoliceState.Pursuing;
-                }
-                else if ((bool)worldState["isTreasureStolen"] && (bool)worldState["WithTreasure"]) // Si veo que ha sido robado
-                {
-                    Debug.Log("Vigilaré la puerta");
-                    UpdateState(WithTreasure: false);
-                    currentState = PoliceState.CampDoor;
-                }
-                else if (!(bool)worldState["isTreasureStolen"] && (bool)worldState["WithTreasure"]) // Si no ha sido robado
-                {
-                    Debug.Log("Me vuelvo a mi patrulla");
-                    if (!HasReachedPatrolCheckpoint())
+                case PoliceState.CampDoor:
+                    StayAtDoor();
+                    if ((bool)worldState["isThiefSeen"])
                     {
-                        Debug.Log("Todavia no lluegue");
-                        actuator.MoveToTarget(actuator.wayPoint[0].position);
+                        currentState = PoliceState.Pursuing;
                     }
-                    else
-                    {
-                        Debug.Log("Lluegué a mi patrulla");
-                        UpdateState(WithTreasure: false, isThiefHeard: false); // resetea el sonido
-                        currentState = PoliceState.Patrolling;
-                    }
-                }
-
-                break;
-
-            case PoliceState.CampTreasure:
-                // Vete a la sala del tesoro y quedate allí (si está el tesoro)
-                GoToTreasureRoom();
-                if ((bool)worldState["isThiefSeen"])
-                {
-                    currentState = PoliceState.Pursuing;
-                }
-                else if ((bool)worldState["isTreasureStolen"])
-                {
-                    Debug.Log("Vigilaré la puerta");
-                    currentState = PoliceState.CampDoor;
-                }
-                break;
-
-            case PoliceState.CampDoor:
-                StayAtDoor();
-                if ((bool)worldState["isThiefSeen"])
-                {
-                    currentState = PoliceState.Pursuing;
-                }
-                break;
+                    break;
+            }
+        } else {
+            InterceptThief();
         }
     }
+
+    void InterceptThief()
+    {
+        if (assignedRole == "cortar_camino_1" && interceptWaypoint1 != null)
+        {
+            actuator.MoveToTarget(interceptWaypoint1.position);
+        }
+        else if (assignedRole == "cortar_camino_2" && interceptWaypoint2 != null)
+        {
+            actuator.MoveToTarget(interceptWaypoint2.position);
+        }
+        else if (assignedRole == "vigilar")
+        {
+            if ((bool)worldState["isTreasureStolen"])
+            {
+                actuator.MoveToTarget(doorWaypoint.position);
+            }
+            else
+            {
+                actuator.MoveToTarget(treasureRoomWaypoint.position);
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"{gameObject.name} no tiene asignado un waypoint de intercepción válido.");
+        }
+    }
+
     public void UpdateWorldState(string key, object value)
     {
         worldState[key] = value;
@@ -304,12 +324,12 @@ public class policeBrain : MonoBehaviour
                 StartCoroutine(StartRoleAssignment());
             }
 
-            // Si ya tengo un rol asignado pero veo al ladrón, lo abandono
-            if (!isCoordinator && assignedRole != null)
-            {
-                Debug.Log($"{gameObject.name} abandona el rol '{assignedRole}' para atrapar al ladrón.");
-                assignedRole = null;
-            }
+            // // Si ya tengo un rol asignado pero veo al ladrón, lo abandono
+            // if (!isCoordinator && assignedRole != null)
+            // {
+            //     Debug.Log($"{gameObject.name} abandona el rol '{assignedRole}' para atrapar al ladrón.");
+            //     assignedRole = null;
+            // }
 
             // Enviar mensaje para compartir posición del ladrón
             Message msg = new Message(
